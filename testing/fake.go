@@ -128,35 +128,11 @@ func (c *Fake) PrependProxyReactor(resource string, reaction ProxyReactionFunc) 
 	c.ProxyReactionChain = append([]ProxyReactor{&SimpleProxyReactor{resource, reaction}}, c.ProxyReactionChain...)
 }
 
-// Log info to identify which API call this message corresponds to
-func logAction(action Action) {
-	switch concrete_action := action.(type) {
-	case ListActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case GetActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case CreateActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case UpdateActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case DeleteActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case PatchActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case DeleteCollectionActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case WatchActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	case ProxyGetActionImpl:
-		fmt.Printf("%+v\n", concrete_action)
-	}
-}
-
 // Invokes records the provided Action and then invokes the ReactionFunc that
 // handles the action if one exists. defaultReturnObj is expected to be of the
 // same type a normal call would return.
 func (c *Fake) Invokes(action Action, defaultReturnObj runtime.Object) (runtime.Object, error) {
-	logAction(action)
+	LogAction(action)
 
 	c.Lock()
 	defer c.Unlock()
@@ -182,7 +158,7 @@ func (c *Fake) Invokes(action Action, defaultReturnObj runtime.Object) (runtime.
 // InvokesWatch records the provided Action and then invokes the ReactionFunc
 // that handles the action if one exists.
 func (c *Fake) InvokesWatch(action Action) (watch.Interface, error) {
-	logAction(action)
+	LogAction(action)
 
 	c.Lock()
 	defer c.Unlock()
@@ -208,7 +184,7 @@ func (c *Fake) InvokesWatch(action Action) (watch.Interface, error) {
 // InvokesProxy records the provided Action and then invokes the ReactionFunc
 // that handles the action if one exists.
 func (c *Fake) InvokesProxy(action Action) restclient.ResponseWrapper {
-	logAction(action)
+	LogAction(action)
 
 	c.Lock()
 	defer c.Unlock()
