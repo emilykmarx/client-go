@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"bufio"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -68,7 +69,8 @@ func LogCTypesMethodExit() {
 func LogAction(action Action) {
 	w := csv.NewWriter(os.Stdout)
 	// Message type (API call info)
-	api_call_id := fmt.Sprintf("API: k8s.io, TYPE: REQUEST, VERB: %v RESOURCE.SUB: %v.%v NAMESPACE: %v", action.GetVerb(), action.GetResource().String(), action.GetSubresource(), action.GetNamespace())
+	api_call_id := fmt.Sprintf("API: k8s.io, TYPE: Request, VERB: %v, RESOURCE.SUB: %v.%v, NAMESPACE: %v",
+		strings.ToUpper(action.GetVerb()), action.GetResource().String(), action.GetSubresource(), action.GetNamespace())
 
 	w.WriteAll([][]string{
 		{apiMessageLog, api_call_id},
@@ -126,23 +128,49 @@ func (m *AllTaint) prettyPrint(filename string) error {
 		return err
 	}
 	defer file.Close()
-	/*
-			// TODO
-		for api_call_id, info := range m {
-				 format:
-				 	API call
-						CF
-							Param key
-								Test/method
-									Param value
-								<repeat>
-						DF
-							Msg field
-								Param key
-									Test/method
-										Param value (same as field value)
-									<repeat>
-	*/
+	w := bufio.NewWriter(file)
+	defer w.Flush()
+
+	api_call_string_template := "\n%s\n"
+	cf_string_templates := []string{"\tCF\n", "\t\t%s\n", "\t\t\t%s:%s\n"}
+	df_string_templates := []string{"\tDF\n", "\t\t%s\n", "\t\t\t%s\n", "\t\t\t\t%s:%s\n"}
+
+	w.WriteString("***FORMAT***\n")
+	w.WriteString(fmt.Sprintf(api_call_string_template, "API CALL"))
+	w.WriteString(cf_string_templates[0])
+	w.WriteString(fmt.Sprintf(cf_string_templates[1], "Param key"))
+	w.WriteString(fmt.Sprintf(cf_string_templates[2], "Test", "method"))
+	w.WriteString(df_string_templates[0])
+	w.WriteString(fmt.Sprintf(df_string_templates[1], "Msg field"))
+	w.WriteString(fmt.Sprintf(df_string_templates[2], "Param key"))
+	w.WriteString(fmt.Sprintf(df_string_templates[3], "Test", "method"))
+
+	w.WriteString("\n\n***OUTPUT***\n")
+
+	for api_call_id, info := range *m {
+		w.WriteString(fmt.Sprintf(api_call_string_template, api_call_id))
+
+		w.WriteString(cf_string_templates[0])
+		for param_key, test_methods := range info.controlFlow {
+			w.WriteString(fmt.Sprintf(cf_string_templates[1], param_key))
+			for _, test_method := range test_methods {
+				w.WriteString(fmt.Sprintf(cf_string_templates[2], test_method.test, test_method.method))
+				// TODO add paramValue (see add())
+			}
+		}
+
+		w.WriteString(df_string_templates[0])
+		for data_flow, test_methods := range info.dataFlow {
+			w.WriteString(fmt.Sprintf(df_string_templates[1], data_flow.msgField))
+			w.WriteString(fmt.Sprintf(df_string_templates[2], data_flow.paramKey))
+			for _, test_method := range test_methods {
+				w.WriteString(fmt.Sprintf(df_string_templates[3], test_method.test, test_method.method))
+				// TODO add paramValue (see add())
+			}
+		}
+
+	}
+
 	return nil
 }
 
@@ -159,10 +187,8 @@ func (m *AllTaint) add(test string, api_call_id string, params []MethodParams) {
 	for _, methodParam := range params {
 		for _, param := range methodParam.params {
 
-			/* LEFT OFF learn about them selectors confirm this is right -
-			// Treat selectors.role as a prefix to name the label and field by the role they correspond to, not as its own param
-			*/
 			// CF: Msg is CF-tainted by all params
+			// TODO add param.Value to AllTaint for pretty-printing
 			existing_flow.controlFlow[param.Key] = append(existing_flow.controlFlow[param.Key],
 				testMethod{test, methodParam.method})
 
@@ -174,8 +200,10 @@ func (m *AllTaint) add(test string, api_call_id string, params []MethodParams) {
 	(*m)[api_call_id] = existing_flow
 }
 
-func ParseTestOutput(filename string) error {
-	file, err := os.Open(filename)
+// test_outfile contains output from one or more tests
+// Combine all the output and put the result in result_outfile
+func ParseTestOutput(test_outfile string, result_outfile string) error {
+	file, err := os.Open(test_outfile)
 	if err != nil {
 		return err
 	}
@@ -222,5 +250,6 @@ func ParseTestOutput(filename string) error {
 		}
 	}
 
+	msg_taint.prettyPrint(result_outfile)
 	return nil
 }
