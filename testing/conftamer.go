@@ -9,7 +9,8 @@ import (
 )
 
 func GetMessageInfo(client *rpc2.RPCClient, bp *api.Breakpoint, goroutine int64) (*apimessages.APICallID, error) {
-	loadcfg := api.LoadConfig{FollowPointers: true, MaxVariableRecurse: 10, MaxStringLen: 10, MaxArrayValues: 1, MaxStructFields: -1}
+	// TODO handle partial loads
+	loadcfg := api.LoadConfig{FollowPointers: true, MaxVariableRecurse: 10, MaxStringLen: 100, MaxArrayValues: 1, MaxStructFields: -1}
 	scope := api.EvalScope{GoroutineID: goroutine}
 	verb, err := client.EvalVariable(scope, "action.ActionImpl.Verb", loadcfg)
 	if err != nil {
